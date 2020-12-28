@@ -1,4 +1,5 @@
-// TODO(alecmerdler): Implement using TypeScript and a framework...
+import { html, render } from "./node_modules/lit-html/lit-html.js";
+import { styleMap } from "./node_modules/lit-html/directives/style-map.js";
 
 fetch("/feed", {
   method: "POST",
@@ -19,7 +20,7 @@ const subscribe = (uid) => {
     console.log("Initialized websocket connection");
 
     const sessionUID = document.querySelector(
-      ".sknet-connection-info__session-uid",
+      ".skynet-connection-info__session-uid",
     );
 
     while (sessionUID.firstChild) {
@@ -46,4 +47,19 @@ const subscribe = (uid) => {
   const sendMessage = (action, data) => {
     socket.send(JSON.stringify({ action, data }));
   };
+};
+
+const app = () => {
+  const styles = {};
+
+  return html`<div style=${styleMap(styles)}>
+    <h1>Deno Skynet</h1>
+    <div class="skynet-connection-info">
+      <div class="skynet-connection-info__session-uid"></div>
+    </div>
+
+    <div class="skynet-messages">
+      <ul class="skynet-messages-list"></ul>
+    </div>
+  </div>`;
 };

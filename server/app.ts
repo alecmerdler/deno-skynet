@@ -1,12 +1,9 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { acceptable, acceptWebSocket } from "https://deno.land/std/ws/mod.ts";
+import { v4 } from "https://deno.land/std/uuid/mod.ts";
 
 import {
-  broadcastEvent,
-  broadcastEventToAll,
   handleConnection,
-  MessageType,
-  newSession,
 } from "./ws.ts";
 
 if (import.meta.main) {
@@ -19,11 +16,6 @@ if (import.meta.main) {
   #       Running on port ${port}           #
   ########################################
   `.replaceAll("\n  ", "\n"));
-
-  // FIXME(alecmerdler): Debugging by randomly firing events to clients...
-  setInterval(() => {
-    broadcastEventToAll({ type: MessageType.create, data: "blue" });
-  }, 500);
 
   for await (const req of server) {
     console.log(
@@ -39,25 +31,29 @@ if (import.meta.main) {
     if (req.url === "/") {
       req.respond({
         status: 200,
-        body: await Deno.open("./public/index.html"),
+        body: await Deno.open("./frontend/index.html"),
       });
-    } else if (req.url.startsWith("/public/")) {
+    } else if (req.url.startsWith("/frontend/")) {
       req.respond({
         status: 200,
+        headers: new Headers({'Content-Type': 'text/javascript'}),
         body: await Deno.open(".".concat(req.url)),
       });
     } else if (req.url === "/feed") {
-      if (!["POST", "DELETE"].includes(req.method)) {
-        req.respond({ status: 405 });
-      } else {
-        const uid = newSession();
-
-        req.respond({
-          status: 201,
-          body: JSON.stringify({ session: uid }),
-        });
+      switch (req.method) {
+        case "POST":
+          req.respond({
+            status: 201,
+            body: JSON.stringify({ session: v4.generate() }),
+          });
+          break;
+        case "DELETE":
+          break;
+        default:
+          req.respond({ status: 405 });
       }
     } else if (
+      // FIXME(alecmerdler): What happens if we receive a request for a WebSocket UID that was created from another server node...?
       req.url.startsWith("/feed/") && req.url.split("/feed/").length === 2
     ) {
       if (acceptable(req)) {

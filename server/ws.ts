@@ -2,9 +2,10 @@ import {
   isWebSocketCloseEvent,
   WebSocket,
 } from "https://deno.land/std/ws/mod.ts";
-import { v4 } from "https://deno.land/std/uuid/mod.ts";
-import { Observable } from "https://deno.land/x/observable/mod.ts";
 import EventEmitter from "https://deno.land/x/events/mod.ts";
+
+// TODO(alecmerdler): Hide this behind an interface
+import { fakeSourceFor, SourceData } from './source.ts';
 
 export enum MessageType {
   create = "CREATE",
@@ -14,19 +15,13 @@ export enum MessageType {
 
 export type Message = {
   type: MessageType;
-  data: string;
+  data: SourceData;
 };
 
-// FIXME(alecmerdler): Move to a distributed database, this will not scale past single process...
-const sources = new Map<string, EventEmitter>();
-
-export const newSession = () => {
-  const uid = v4.generate();
-  sources.set(uid, new EventEmitter());
-
-  return uid;
-};
-
+/**
+ * handleConnection creates a context with the WebSocket connection
+ * for a given UID.
+ */
 export const handleConnection = async (uid: string, ws: WebSocket) => {
   console.log(
     JSON.stringify(
@@ -34,9 +29,9 @@ export const handleConnection = async (uid: string, ws: WebSocket) => {
     ),
   );
 
-  // TODO(alecmerdler): Send `ping` to client on interval...
+  const subscription = fakeSourceFor(uid).subscribe(async (data) => {
+    const msg: Message = {type: MessageType.create, data};
 
-  sources.get(uid)?.on("event", async (msg: Message) => {
     console.log(JSON.stringify({ type: "SendingEvent", uid, msg }));
 
     try {
@@ -44,7 +39,13 @@ export const handleConnection = async (uid: string, ws: WebSocket) => {
     } catch (error) {
       console.log(JSON.stringify({ type: "SendingEventFailed", uid, error }));
     }
+  }, (error) => {
+    
+  }, async () => {
+    await ws.close();
   });
+
+  // TODO(alecmerdler): Send `ping` to client on interval...
 
   for await (const ev of ws) {
     if (typeof ev === "string") {
@@ -52,7 +53,7 @@ export const handleConnection = async (uid: string, ws: WebSocket) => {
 
       console.log(JSON.stringify({ type: "MessageReceived", uid, message }));
     } else if (isWebSocketCloseEvent(ev)) {
-      sources.delete(uid);
+      subscription.unsubscribe();
 
       console.log(
         JSON.stringify(
@@ -64,24 +65,5 @@ export const handleConnection = async (uid: string, ws: WebSocket) => {
         ),
       );
     }
-  }
-};
-
-export const broadcastEventToAll = (msg: Message) => {
-  console.log(JSON.stringify({ type: "BroadcastingEventToAll", msg }));
-
-  for (const [uid] of sources) {
-    broadcastEvent(uid, msg);
-  }
-};
-
-export const broadcastEvent = (uid: string, msg: Message) => {
-  console.log(JSON.stringify({ type: "BroadcastingEvent", uid, msg }));
-
-  const source = sources.get(uid);
-  if (source === undefined) {
-    console.log(JSON.stringify({ type: "BroadcastingEventFailed", uid, msg }));
-  } else {
-    source.emit("event", msg);
   }
 };

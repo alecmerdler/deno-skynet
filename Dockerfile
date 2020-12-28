@@ -7,10 +7,11 @@ WORKDIR /app
 # Ideally fetch deps.ts will download and compile _all_ external files used in main.ts.
 COPY deps.ts .
 RUN deno cache deps.ts
-ADD . .
+ADD server server
+ADD frontend frontend
 # Compile the main app so that it doesn't need to be compiled each startup/entry.
-RUN deno cache app.ts
+RUN deno cache server/app.ts
 
 EXPOSE 3000
 
-CMD ["run", "--allow-net", "--allow-read", "app.ts"]
+CMD ["run", "--allow-net", "--allow-read", "server/app.ts"]

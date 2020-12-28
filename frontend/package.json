@@ -1,0 +1,14 @@
+{
+  "name": "deno-skynet",
+  "version": "1.0.0",
+  "description": "Frontend UI for deno-skynet",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alec Merdler",
+  "license": "MIT",
+  "devDependencies": {
+    "lit-html": "^1.3.0"
+  }
+}
